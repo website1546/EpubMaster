@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Book Publisher</title>
+    
+    <!-- Professional Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Libraries (Engines) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* 1. UI STYLING (What the website looks like) */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f4f4f9; 
+            display: flex; flex-direction: column; align-items: center; padding: 50px;
+        }
+        .container { 
+            background: white; padding: 40px; border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 500px;
+        }
+        h1 { color: #222; margin-bottom: 10px; }
+        p { color: #666; margin-bottom: 30px; }
+        input[type="file"] { display: none; }
+        .upload-btn {
+            background: #000; color: #fff; padding: 15px 30px; border-radius: 8px;
+            cursor: pointer; font-weight: bold; display: inline-block; transition: 0.3s;
+        }
+        .upload-btn:hover { background: #333; }
+        #status { margin-top: 20px; font-weight: bold; color: #d35400; }
+
+        /* 2. PUBLISHING STYLING (What the PDF will look like) */
+        /* This is the "Secret Sauce" for professional books */
+        #book-content { display: none; } /* Hidden on screen */
+        
+        .pdf-page {
+            font-family: 'EB Garamond', serif;
+            text-align: justify;
+            line-height: 1.5;
+            font-size: 12pt;
+            color: #000;
+        }
+        .pdf-page h1, .pdf-page h2 { 
+            text-align: center; text-transform: uppercase; 
+            margin-top: 20%; margin-bottom: 10%; 
+        }
+        .pdf-page p { margin: 0; text-indent: 1.5em; }
+        /* Professional Drop Cap */
+        .pdf-page h1 + p::first-letter, .pdf-page h2 + p::first-letter {
+            float: left; font-size: 3.5em; line-height: 0.8;
+            font-weight: bold; margin-right: 8px; padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Book Publisher Pro</h1>
+        <p>Transform EPUB into a high-end, print-ready PDF with professional typesetting.</p>
+        
+        <label for="file-upload" class="upload-btn">SELECT EPUB BOOK</label>
+        <input id="file-upload" type="file" accept=".epub" />
+        
+        <div id="status"></div>
+    </div>
+
+    <!-- Hidden area for processing -->
+    <div id="book-content"></div>
+
+    <script>
+        const fileInput = document.getElementById('file-upload');
+        const status = document.getElementById('status');
+        const contentArea = document.getElementById('book-content');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            status.innerText = "Reading book structure...";
+            
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const book = ePub(event.target.result);
+                contentArea.innerHTML = ""; // Clear old data
+
+                // Get all chapters
+                const spine = await book.loaded.spine;
+                status.innerText = "Typesetting pages (this may take a minute)...";
+
+                // Process every chapter
+                const promises = spine.spineItems.map(item => 
+                    item.load(book.load.bind(book)).then(doc => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = "pdf-page";
+                        wrapper.innerHTML = doc.body.innerHTML;
+                        contentArea.appendChild(wrapper);
+                    })
+                );
+
+                await Promise.all(promises);
+                
+                status.innerText = "Generating Professional PDF...";
+                generatePDF(file.name.replace('.epub', ''));
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function generatePDF(filename) {
+            const element = document.getElementById('book-content');
+            element.style.display = "block"; // Show for the engine
+
+            const opt = {
+                margin:       [0.75, 0.6, 0.75, 0.6], // [top, left, bottom, right] in inches
+                filename:     filename + '_Professional.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: [5.5, 8.5], orientation: 'portrait' }, // 5.5x8.5 is standard book size
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            // Run conversion
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.display = "none";
+                status.innerText = "SUCCESS! Your book is ready.";
+                status.style.color = "#27ae60";
+            });
+        }
+    </script>
+</body>
+</html>
